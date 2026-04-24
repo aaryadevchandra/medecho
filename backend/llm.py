@@ -1,4 +1,4 @@
-"""LLM-backed medical document JSON extraction (Mistral AI official SDK)."""
+"""LLM-backed discharge document JSON extraction (Mistral AI official SDK)."""
 
 from __future__ import annotations
 
@@ -41,9 +41,9 @@ EMPTY_SCHEMA: dict[str, Any] = {
     "doctor_instructions": [],
 }
 
-EXTRACTION_PROMPT = """You are a medical document extraction assistant.
+EXTRACTION_PROMPT = """You are an aftercare document extraction assistant.
 
-Extract only information explicitly present in the uploaded medical document.
+Extract only information explicitly present in the uploaded discharge or aftercare document.
 Do not infer, guess, diagnose, or add external medical knowledge.
 If a field is missing, return an empty string or empty array.
 Return valid JSON only. No markdown. No explanation.

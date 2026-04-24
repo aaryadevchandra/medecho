@@ -8,9 +8,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "AfterCare",
+  title: "Aftercare",
   description:
-    "Turn medical documents into clear, structured patient instructions.",
+    "Turn discharge documents into clear, structured aftercare instructions.",
 };
 
 export default function RootLayout({

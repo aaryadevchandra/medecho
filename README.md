@@ -1,158 +1,170 @@
-# AfterCare
+# Aftercare
 
-AfterCare turns **medical documents** (PDF or plain text) into a **readable patient summary** and answers **follow-up questions** by combining **retrieval from your upload**, **optional web snippets**, and **general medical context** from the chat model.
+**A post-discharge assistant that turns hospital paperwork into grounded answers and voice-based follow-up support.**
 
-This repository is an **MVP slice**: upload → structured extraction (LLM) → in-memory indexing → RAG Q&A. There is **no database**, **no authentication**, and **no voice** features yet.
+Built for the **UMD x Claude hackathon on April 24, 2026**.
 
----
+Aftercare helps patients understand what to do after leaving the hospital: which medicines to take, what symptoms to watch for, when to follow up, and when to escalate to a clinician. The prototype has two hackathon-ready parts:
 
-## Features
+- **Document intelligence:** upload a discharge PDF or TXT file, extract the care plan, and ask questions grounded in the document, optional web snippets, and clearly labeled general medical context.
+- **Voice aftercare:** talk to Aria, a standalone ElevenLabs post-discharge voice copilot backed by a fictional discharge bundle and safety-first tool calls.
 
-- **Upload** PDF or TXT (drag-and-drop or file picker).
-- **Structured extraction** via [Mistral AI](https://console.mistral.ai/): patient info, diagnoses, medications, tests, follow-up, red flags, and doctor instructions (structured data rendered as summary cards — not raw JSON in the UI).
-- **RAG Q&A** after upload: see [RAG & retrieval](#rag--retrieval) below.
-- **Optional web context**: short [DuckDuckGo Instant Answer](https://duckduckgo.com/api) JSON snippets merged into the Q&A prompt when available (`AFTERCARE_WEB_LOOKUP`, on by default; legacy `MEDECHO_WEB_LOOKUP` still honored).
-- **Assistant replies** rendered as **Markdown** in the UI (`react-markdown` + Tailwind Typography).
-- **Sample document** card for demo formatting.
+The two parts are intentionally separate in this 1.5 hour build. The intended product path is straightforward: the document extraction output becomes the personal data layer for the voice agent.
 
----
+## Demo Story
 
-## Architecture (high level)
+Maria Santos has just been discharged after a heart-failure flare-up. Her medication schedule changed, her INR needs monitoring, and her paperwork includes red-flag symptoms. The next day she needs answers quickly, without rereading a packet.
+
+Try questions like:
+
+- "What medicines do I take tonight?"
+- "Can I take Advil with my warfarin?"
+- "I forgot my morning water pill. What now?"
+- "My INR was 3.8. Is that okay?"
+- "I'm having chest pain right now."
+
+Aftercare is designed to answer from the discharge plan when it can, explain context when helpful, and escalate when it should.
+
+## Why This Matters
+
+Discharge is one of the riskiest transitions in care. Patients leave with dense instructions, medication changes, follow-up appointments, and warning signs that are easy to miss. A useful aftercare assistant needs to be:
+
+- **Grounded:** patient-specific answers start from the uploaded discharge document or patient bundle.
+- **Conservative:** the assistant does not invent diagnoses, dosages, or medication changes.
+- **Actionable:** patients get plain-language next steps instead of raw clinical text.
+- **Escalation-aware:** red flags, off-bundle questions, and unsafe medication questions route to a clinician handoff.
+
+## What Works Today
+
+| Area | Status |
+| --- | --- |
+| Upload PDF or TXT discharge documents | Working |
+| Extract structured care-plan fields | Working |
+| Show readable summary cards | Working |
+| Ask document-grounded questions | Working |
+| Blend optional web snippets into Q&A | Working |
+| Render assistant answers as Markdown | Working |
+| Standalone aftercare voice agent | Working prototype |
+| Medication, labs, follow-up, red-flag voice tools | Working prototype |
+| Dynamic connection between uploaded document and voice agent | Future integration |
+
+## Architecture
 
 ```text
-┌─────────────┐     multipart      ┌──────────────────────────────────────────┐
-│  Next.js    │ ────────────────► │ FastAPI                                   │
-│  (browser)  │ ◄──────────────── │  • PyMuPDF / TXT → raw text               │
-└─────────────┘   JSON responses  │  • Mistral chat → structured JSON         │
-                                   │  • Chunk + Mistral embed → vectors        │
-                                   │  • In-memory session (session_id)         │
-                                   │  • Q&A: retrieve + DDG? + Mistral chat    │
-                                   └──────────────────────────────────────────┘
+                 Part 1: Document Intelligence
+
+Patient discharge PDF/TXT
+        |
+        v
+Text extraction + structured extraction
+        |
+        v
+In-memory retrieval index
+        |
+        +--> Web Q&A grounded in the uploaded document
+        |
+        +--> Optional web instant summary for extra context
+
+
+                 Part 2: Voice Aftercare
+
+Fictional discharge bundle
+        |
+        v
+FastAPI tool server on port 8002
+        |
+        v
+ElevenLabs voice agent, "Aria"
+        |
+        v
+Medication help, lab explanations, adherence logging, escalation
+
+
+                 Next Step
+
+Use Part 1 extraction output as the live patient bundle for Part 2.
 ```
 
-- **Frontend** (`frontend/`): calls `POST /upload-and-extract` and `POST /sessions/{id}/ask` (see `lib/api.ts`; default API base `http://localhost:8000`).
-- **Backend** (`backend/`): all Mistral traffic uses the official **`mistralai`** Python SDK (v1.x, Python 3.9+).
+## Repository Map
 
----
+```text
+.
+├── backend/                  FastAPI extraction, RAG, web-context API
+├── frontend/                 Next.js app for upload, summary, and Q&A
+├── aftercare_voice_agent/    Standalone ElevenLabs voice-agent prototype
+│   ├── agent/                Prompt, first message, voice notes, knowledge bundle
+│   ├── api/                  Local tool server for Aria
+│   ├── tools/                Agent setup and knowledge-base upload scripts
+│   └── expected_flows.md     Demo runbook and safety checks
+└── README.md
+```
 
-## Data storage (no database)
-
-| Aspect | Implementation |
-|--------|----------------|
-| **Database** | **None.** No Postgres, SQLite, Redis, or vector DB. |
-| **Sessions** | Python **`OrderedDict`** + `threading.Lock` in `session_store.py`. |
-| **Capacity** | Up to **200** sessions; oldest evicted (FIFO) when the limit is exceeded. |
-| **Lifetime** | **Process memory only.** Restarting Uvicorn **drops all sessions** and `session_id` values become invalid. |
-| **Per session** | `session_id`, `filename`, full **`raw_text`**, text **`chunks`**, **`chunk_embeddings`** (float vectors), and the structured **`extracted`** dict. |
-
-For production you would typically add a database (metadata), object storage (original PDFs), and a vector store or managed retrieval service — not implemented here.
-
----
-
-## LLMs & models (Mistral)
-
-All calls use **`MISTRAL_API_KEY`** (La Plateforme). Override models with environment variables.
-
-| Step | Module | What runs | Default model | Notes |
-|------|--------|-----------|---------------|--------|
-| **Structured extraction** | `llm.py` | Chat completion with **`response_format: json_object`** | `MISTRAL_MODEL` → **`mistral-small-latest`** | Strict JSON schema merge for patient/meds/tests/etc. |
-| **Embeddings (indexing)** | `rag.py` | `client.embeddings.create` in batches of 32 | `MISTRAL_EMBED_MODEL` → **`mistral-embed`** | One vector per text chunk; cosine similarity at query time. |
-| **Q&A answer** | `rag.py` | Chat completion (no JSON mode); long system prompt + user question | Same as **`MISTRAL_MODEL`** | Temperature ~`0.3`, higher `max_tokens` for long blended answers. |
-
-**SDK:** `mistralai>=1.9,<2` (see `backend/requirements.txt`). Older Python 3.9 is supported; Mistral’s **v2** SDK requires Python 3.10+.
-
----
-
-## RAG & retrieval
-
-### Indexing (runs once per successful upload, after extraction)
-
-1. **Structured summary chunk** — Plain text built from the extracted JSON (`extracted_to_summary_chunk` in `rag.py`), always included so retrieval can hit high-level facts even if raw OCR is noisy.
-2. **Document chunks** — Raw text split on paragraph boundaries, target **~1100 characters** per chunk with **~160** overlap (`chunk_document`).
-3. **Embeddings** — Each chunk embedded with **`mistral-embed`**; vectors stored on the in-memory session next to the chunk text.
-
-### Query-time (each `POST .../ask`)
-
-1. **Embed the user question** with the same embedding model.
-2. **Cosine similarity** between the question vector and every chunk vector (`rag.py`).
-3. **Top‑k chunks** (default **6**) concatenated into the system prompt as “document excerpts”.
-4. **Optional web snippet** — `web_context.py` calls DuckDuckGo’s **`api.duckduckgo.com`** (JSON); if `Abstract` / `Answer` / `Definition` exist, they are appended for the model to treat as **third-party, verify-before-trusting** context. Disable with `AFTERCARE_WEB_LOOKUP=0` (or legacy `MEDECHO_WEB_LOOKUP=0`).
-5. **Chat completion** — System instructions tell the model to combine **(1) document excerpts**, **(2) web snippet if any**, and **(3) general medical knowledge**, with clear headings (Markdown) for the UI.
-
-There is **no re-ranking**, **no hybrid BM25**, and **no citation offsets** back into the PDF — this is intentionally simple.
-
----
-
-## Tech stack
+## Tech Stack
 
 | Layer | Stack |
-|--------|--------|
-| Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, **react-markdown**, **remark-gfm**, **@tailwindcss/typography** |
-| Backend | FastAPI, Pydantic, **httpx** (web lookup), **python-multipart** |
-| PDF text | PyMuPDF (`fitz`) |
-| LLM / embeddings | Mistral (`mistralai` v1.x) — chat + embeddings |
+| --- | --- |
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, `react-markdown`, `remark-gfm`, Tailwind Typography |
+| Backend | FastAPI, Pydantic, `python-multipart`, `httpx` |
+| PDF parsing | PyMuPDF |
+| LLM and embeddings | Mistral SDK v1.x, `mistral-embed` |
+| Voice agent | ElevenLabs Conversational AI |
+| State | In-memory sessions for the hackathon demo |
 
----
+## Document RAG Details
 
-## Project layout
+When a file is uploaded:
 
-```
-aftercare/
-├── README.md
-├── backend/
-│   ├── main.py              # FastAPI routes, CORS, orchestration
-│   ├── requirements.txt
-│   ├── document_parser.py   # PDF (PyMuPDF) + TXT extraction
-│   ├── llm.py               # Mistral JSON extraction (chat)
-│   ├── rag.py               # Chunking, embeddings, retrieval, Q&A chat
-│   ├── session_store.py     # In-memory sessions (no DB)
-│   └── web_context.py       # DuckDuckGo instant-answer helper
-└── frontend/
-    ├── app/                 # Next.js app router
-    ├── components/          # UploadPanel, SampleDocument, DocumentSummary, QuestionAnswer
-    └── lib/api.ts           # API client (`API_BASE` → backend)
-```
+1. The backend extracts raw text from PDF or TXT.
+2. Mistral extracts structured JSON: patient info, diagnoses, medications, tests, follow-up, red flags, and doctor instructions.
+3. The backend builds a plain-language structured summary chunk.
+4. Raw text is chunked into overlapping passages.
+5. Each chunk is embedded with `mistral-embed`.
+6. The session is stored in memory with a `session_id`.
 
----
+When the patient asks a question:
 
-## Prerequisites
+1. The question is embedded.
+2. Cosine similarity retrieves the top document chunks.
+3. Optional DuckDuckGo Instant Answer context is added when available.
+4. Mistral writes a Markdown answer with document-grounded sections and clearly labeled general context.
 
-- **Python** 3.9+ (this repo pins `mistralai>=1.9,<2` for 3.9; Mistral SDK v2 needs 3.10+).
-- **Node.js** 18.17+ (Next.js 14).
+There is no database, no vector DB, and no authentication in this MVP. Sessions live in process memory and disappear when the backend restarts.
 
----
+## Environment
 
-## Environment variables (backend)
+Backend variables:
 
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `MISTRAL_API_KEY` | **Yes** | API key from [Mistral La Plateforme](https://console.mistral.ai/). |
-| `MISTRAL_MODEL` | No | Chat model for **JSON extraction** and **Q&A** (default: `mistral-small-latest`). |
-| `MISTRAL_EMBED_MODEL` | No | Embedding model for **RAG indexing / query** (default: `mistral-embed`). |
-| `AFTERCARE_WEB_LOOKUP` | No | Set to `0` / `false` / `off` to **disable** DuckDuckGo instant-answer snippets (default: enabled). Legacy: `MEDECHO_WEB_LOOKUP` is read if `AFTERCARE_WEB_LOOKUP` is unset. |
+| --- | --- | --- |
+| `MISTRAL_API_KEY` | Yes | Mistral API key for extraction, embeddings, and Q&A. |
+| `MISTRAL_MODEL` | No | Chat model for extraction and Q&A. Defaults to `mistral-small-latest`. |
+| `MISTRAL_EMBED_MODEL` | No | Embedding model. Defaults to `mistral-embed`. |
+| `AFTERCARE_WEB_LOOKUP` | No | Set to `0`, `false`, or `off` to disable web snippets. |
 
-Do not commit API keys. Use `export` in your shell or a local `.env` file that is gitignored (load manually or add `python-dotenv` if you prefer).
+Voice-agent variables:
 
----
+| Variable | Required | Description |
+| --- | --- | --- |
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key for creating/updating Aria. |
+| `ELEVENLABS_VOICE_ID_EN` | No | Optional voice override. |
+| `AFTERCARE_API_PORT` | No | Defaults to `8002`. |
 
-## Run locally
+Do not commit real API keys. Use local `.env` files only.
 
-### 1. Backend (port 8000)
+## Run Part 1: Document App
+
+Start the backend:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 export MISTRAL_API_KEY="your-key-here"
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Health check: `GET http://localhost:8000/health`
-
-### 2. Frontend (port 3000)
-
-Run commands from the **`frontend/`** directory so Tailwind scans the right paths (`tailwind.config.mjs` anchors `content` to this folder).
+Start the frontend:
 
 ```bash
 cd frontend
@@ -160,79 +172,81 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000** (or the port Next prints, e.g. 3001 if 3000 is busy). The UI calls the API at **http://localhost:8000** (see `frontend/lib/api.ts`). Change `API_BASE` there if your backend runs elsewhere.
+Open:
 
----
-
-## API overview
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Liveness check. |
-| `POST` | `/upload-and-extract` | Multipart field **`file`** (`.pdf` or `.txt`). Runs extraction + embedding index; returns **`session_id`**, **`filename`**, **`extracted`**. |
-| `POST` | `/sessions/{session_id}/ask` | JSON `{ "question": "..." }` → `{ "answer": "..." }` (Markdown string). |
-
-**Sessions:** in-memory only; max **200**; **restart clears everything**.
-
----
-
-## CORS
-
-The backend uses permissive CORS for local dev (`allow_origins=["*"]`, `allow_credentials=False`). **Tighten before production** (explicit origins, credentials as needed).
-
----
-
-## Build frontend for production
-
-```bash
-cd frontend
-npm run build
-npm start
+```text
+http://localhost:3000
 ```
 
----
+## Run Part 2: Voice Agent
 
-## Medical disclaimer
-
-AfterCare is a **demonstration tool**. It does not replace licensed medical care. Model and web snippets can be wrong or outdated. Always follow your clinician and pharmacist, and use emergency services when appropriate.
-
----
-
-## Publishing to GitHub
-
-### Option A — GitHub CLI (recommended)
+Start the Aftercare voice-agent backend:
 
 ```bash
-brew install gh          # if `gh` is not installed
-gh auth login            # browser or token; one-time per machine
-cd /path/to/aftercare
-gh repo create aftercare --public --source=. --remote=origin --push
+cd aftercare_voice_agent
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-If `origin` already exists:
+Add your ElevenLabs API key to `.env`:
 
 ```bash
-gh repo create aftercare --public --source=. --push
+ELEVENLABS_API_KEY=your-key-here
 ```
 
-Use `--private` instead of `--public` for a private repository.
+Create or update Aria:
 
-### Option B — Create the repo in the browser
+```bash
+python -m tools.setup_agent
+```
 
-1. Open [github.com/new](https://github.com/new), name the repository (e.g. `aftercare`), leave “Initialize” unchecked.
-2. Point `origin` at your new URL (replace `YOUR_USER` and `REPO`):
+Run the tool server:
 
-   ```bash
-   cd /path/to/aftercare
-   git remote remove origin 2>/dev/null || true
-   git remote add origin https://github.com/YOUR_USER/REPO.git
-   git push -u origin main
-   ```
+```bash
+uvicorn api.index:app --reload --port 8002
+```
 
-For SSH: `git remote add origin git@github.com:YOUR_USER/REPO.git`
+Useful endpoints:
 
----
+- `GET http://localhost:8002/health`
+- `GET http://localhost:8002/ledger`
 
-## License
+The voice-agent details and demo flow live in [aftercare_voice_agent/README.md](aftercare_voice_agent/README.md).
 
-Add a license file if you open-source this project.
+## Safety Design
+
+Aftercare is intentionally conservative:
+
+- The document app separates patient-specific document facts from general medical context.
+- Optional web snippets are treated as third-party orientation, not patient-specific truth.
+- The voice agent uses tools for medications, labs, adherence, follow-up, and escalation.
+- Aria does not change the care plan, diagnose, or invent missing instructions.
+- Chest pain, severe shortness of breath, bleeding, confusion, falls, suspected overdose, and off-bundle medication questions trigger escalation paths.
+
+## Hackathon Scope
+
+Completed:
+
+- Discharge document upload and extraction.
+- Structured patient summary UI.
+- In-memory RAG over uploaded documents.
+- Optional web-context augmentation.
+- Markdown-rendered assistant answers.
+- Standalone ElevenLabs voice-agent prototype.
+- Mock discharge bundle for realistic aftercare flows.
+- Safety-first prompt and tool definitions.
+- Demo runbook for medication interaction, missed dose, lab explanation, follow-up, and critical escalation.
+
+Future work:
+
+- Connect uploaded document sessions directly to Aria.
+- Persist patient sessions and adherence logs.
+- Add EHR/FHIR ingestion.
+- Replace mock escalation with real clinician paging, SMS, or care-team task creation.
+- Add authentication and production-grade privacy controls.
+
+## Disclaimer
+
+Aftercare is a demonstration prototype. It does not provide medical advice, diagnosis, or treatment. Outputs may be incomplete or wrong. Patients should follow instructions from licensed clinicians and seek urgent or emergency care when appropriate.

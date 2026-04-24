@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aftercare — Aria test page</title>
+  <style>
+    :root {
+      --bg: #f6f3ed;
+      --ink: #1a2238;
+      --ink-soft: #4a5169;
+      --accent: #2b5d4f;
+      --accent-soft: #d8e6df;
+      --warn: #b34a3a;
+      --rule: #d8d2c4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    main {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 32px 24px 96px;
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .sub {
+      color: var(--ink-soft);
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+    .panel {
+      background: white;
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 18px;
+    }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    button {
+      font: inherit;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    button.secondary {
+      background: white;
+      color: var(--accent);
+    }
+    button:hover:not(:disabled) { filter: brightness(0.95); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #cfcfcf;
+    }
+    .dot.connected { background: #5fb27a; }
+    .dot.error { background: var(--warn); }
+    .transcript {
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+    .turn { padding: 8px 0; border-bottom: 1px solid #f0ece2; }
+    .turn:last-child { border-bottom: none; }
+    .turn .who {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 2px;
+    }
+    .turn.user .who { color: #6a4a8b; }
+    .turn.agent .who { color: var(--accent); }
+    .turn.tool .who { color: var(--warn); }
+    .turn.tool { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+    .small { font-size: 12px; color: var(--ink-soft); }
+    .scenarios {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+    .scenarios button {
+      background: white;
+      color: var(--ink);
+      border: 1px solid var(--rule);
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .scenarios button:hover { border-color: var(--accent); }
+    .ledger pre {
+      background: #1a2238;
+      color: #d8e6df;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-height: 240px;
+      overflow: auto;
+    }
+    .warn-banner {
+      background: #fdecea;
+      border: 1px solid #f3b8af;
+      color: #6c2a20;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .warn-banner.show { display: block; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Aftercare — Aria</h1>
+    <p class="sub">Post-discharge voice copilot · test rig · patient: <strong id="patient-name">Maria</strong></p>
+
+    <div id="agent-banner" class="warn-banner">
+      No agent id loaded. Run <code>python -m tools.setup_agent</code> first, then refresh.
+    </div>
+
+    <section class="panel">
+      <div class="row" style="justify-content: space-between;">
+        <div class="row">
+          <button id="btn-start">Start call</button>
+          <button id="btn-end" class="secondary" disabled>End call</button>
+        </div>
+        <div class="status">
+          <span id="dot" class="dot"></span>
+          <span id="status-text">disconnected</span>
+        </div>
+      </div>
+      <p class="small" style="margin: 14px 0 0;">
+        Click <strong>Start call</strong>, allow microphone access, and speak naturally.
+        Aria will greet you first, then wait. Try the prompts below.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h3 style="margin: 0 0 10px; font-size: 14px;">Quick demo prompts</h3>
+      <div class="scenarios">
+        <button data-prompt="What pills do I take tonight?">"What pills do I take tonight?"</button>
+        <button data-prompt="Can I take an Advil with my warfarin?">"Can I take an Advil with my warfarin?"</button>
+        <button data-prompt="I forgot my morning water pill, what do I do?">"I forgot my morning water pill"</button>
+        <button data-prompt="My INR was three point eight, is that okay?">"My INR was 3.8, is that okay?"</button>
+        <button data-prompt="When is my next appointment?">"When is my next appointment?"</button>
+        <button data-prompt="I'm having chest pain right now.">"I'm having chest pain right now"</button>
+      </div>
+      <p class="small" style="margin-top: 10px;">
+        These copy to clipboard — read them out loud to Aria. They are not injected as text.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h3 style="margin: 0 0 10px; font-size: 14px;">Transcript</h3>
+      <div id="transcript" class="transcript">
+        <div class="small">Nothing yet. Start the call and say hello.</div>
+      </div>
+    </section>
+
+    <section class="panel ledger">
+      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 14px;">Operator ledger (live)</h3>
+        <button id="btn-refresh-ledger" class="secondary" style="padding: 6px 12px; font-size: 12px;">Refresh</button>
+      </div>
+      <pre id="ledger">{ click refresh after a tool fires }</pre>
+    </section>
+  </main>
+
+  <script type="module">
+    let Conversation;
+    try {
+      ({ Conversation } = await import("https://esm.sh/@elevenlabs/client@1.2.1"));
+    } catch (err) {
+      document.getElementById("agent-banner").textContent = "Failed to load @elevenlabs/client from esm.sh: " + (err?.message || err);
+      document.getElementById("agent-banner").classList.add("show");
+      document.getElementById("btn-start").disabled = true;
+      throw err;
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      start: $("btn-start"),
+      end: $("btn-end"),
+      dot: $("dot"),
+      status: $("status-text"),
+      transcript: $("transcript"),
+      banner: $("agent-banner"),
+      patientName: $("patient-name"),
+      ledger: $("ledger"),
+      refreshLedger: $("btn-refresh-ledger"),
+    };
+
+    let conversation = null;
+    let agentId = null;
+
+    function setStatus(state, text) {
+      els.dot.className = "dot " + (state === "connected" ? "connected" : state === "error" ? "error" : "");
+      els.status.textContent = text;
+    }
+
+    function addTurn(role, text) {
+      const div = document.createElement("div");
+      div.className = "turn " + role;
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = role === "tool" ? "tool · " + text.split(" ")[0] : role;
+      const msg = document.createElement("div");
+      msg.textContent = role === "tool" ? text.split(" ").slice(1).join(" ") : text;
+      div.append(who, msg);
+      // clear the placeholder on first turn
+      if (els.transcript.firstElementChild?.classList.contains("small")) {
+        els.transcript.innerHTML = "";
+      }
+      els.transcript.append(div);
+      els.transcript.scrollTop = els.transcript.scrollHeight;
+    }
+
+    async function callTool(name, body) {
+      addTurn("tool", `${name} ${JSON.stringify(body)}`);
+      const res = await fetch(`/tools/${name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        addTurn("tool", `${name} → ERROR ${res.status} ${text}`);
+        return { spoken: "I'm having trouble on my side. Let me get a nurse.", escalate: true };
+      }
+      const data = await res.json();
+      addTurn("tool", `${name} → ${data.spoken?.slice(0, 100) || "(no spoken)"}`);
+      return data;
+    }
+
+    // The seven client tools. Each returns the `spoken` field which the LLM
+    // narrates aloud; full JSON is also returned so the LLM can reason over it.
+    const clientTools = {
+      get_medications: async (params) => callTool("get_medications", params || {}),
+      get_medication_detail: async (params) => callTool("get_medication_detail", params),
+      log_dose: async (params) => callTool("log_dose", params),
+      check_adherence: async (params) => callTool("check_adherence", params || {}),
+      explain_lab_result: async (params) => callTool("explain_lab_result", params),
+      get_followup_plan: async (params) => callTool("get_followup_plan", params || {}),
+      escalate_to_clinician: async (params) => callTool("escalate_to_clinician", params),
+    };
+
+    async function loadConfig() {
+      if (location.protocol === "file:") {
+        els.banner.textContent = "Open this page from http://localhost:8002, not file://";
+        els.banner.classList.add("show");
+        els.start.disabled = true;
+        setStatus("error", "wrong protocol");
+        return;
+      }
+      try {
+        const res = await fetch("/config.json");
+        const data = await res.json();
+        agentId = data.agent_id;
+        if (data.patient_first_name) els.patientName.textContent = data.patient_first_name;
+        if (!agentId) {
+          els.banner.classList.add("show");
+          els.start.disabled = true;
+          setStatus("error", "no agent id");
+        }
+      } catch (e) {
+        els.banner.textContent = "Could not reach /config.json — is the FastAPI server running?";
+        els.banner.classList.add("show");
+        els.start.disabled = true;
+        setStatus("error", "config error");
+      }
+    }
+
+    async function startCall() {
+      els.start.disabled = true;
+      setStatus("connecting", "connecting…");
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        conversation = await Conversation.startSession({
+          agentId,
+          clientTools,
+          onConnect: () => { setStatus("connected", "connected"); els.end.disabled = false; },
+          onDisconnect: () => { setStatus("disconnected", "disconnected"); els.end.disabled = true; els.start.disabled = false; },
+          onError: (err) => { console.error(err); setStatus("error", "error"); addTurn("tool", `error ${err?.message || err}`); },
+          onMessage: (msg) => {
+            // SDK contract drift: some versions emit `source`, others `role`.
+            // Tool and system events are logged separately in the transcript.
+            // separately via callTool, and rendering them duplicates output.
+            if (!msg?.message) return;
+            const speaker = msg.source ?? msg.role;
+            if (speaker !== "user" && speaker !== "ai" && speaker !== "agent") return;
+            const role = speaker === "user" ? "user" : "agent";
+            addTurn(role, msg.message);
+          },
+        });
+      } catch (err) {
+        console.error(err);
+        if (err?.name === "NotAllowedError" || err?.name === "NotFoundError") {
+          setStatus("error", "mic permission denied — allow it in your browser address bar and try again");
+        } else {
+          setStatus("error", "mic / connect failed");
+        }
+        els.start.disabled = false;
+        addTurn("tool", `start error ${err?.message || err}`);
+      }
+    }
+
+    async function endCall() {
+      // Guard against double-clicks and against startSession having thrown
+      // (in which case `conversation` is still null).
+      if (els.end.disabled) return;
+      els.end.disabled = true;
+      if (conversation) {
+        try {
+          await conversation.endSession();
+        } catch (err) {
+          console.error(err);
+        }
+        conversation = null;
+      }
+      els.start.disabled = false;
+      setStatus("disconnected", "disconnected");
+    }
+
+    async function refreshLedger() {
+      try {
+        const res = await fetch("/ledger");
+        els.ledger.textContent = JSON.stringify(await res.json(), null, 2);
+      } catch (e) {
+        els.ledger.textContent = "ledger fetch failed: " + (e?.message || e);
+      }
+    }
+
+    // Wire up scenario-prompt buttons → copy to clipboard.
+    document.querySelectorAll("[data-prompt]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(b.dataset.prompt);
+        const original = b.textContent;
+        b.textContent = "copied · read it out loud";
+        setTimeout(() => { b.textContent = original; }, 1400);
+      });
+    });
+
+    els.start.addEventListener("click", startCall);
+    els.end.addEventListener("click", endCall);
+    els.refreshLedger.addEventListener("click", refreshLedger);
+
+    setStatus("disconnected", "disconnected");
+    loadConfig();
+  </script>
+</body>
+</html>

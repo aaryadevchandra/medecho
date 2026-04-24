@@ -1,0 +1,43 @@
+{
+  "voice_strategy": "Warm clinical-calm. Trusted-nurse-on-the-phone, never chirpy. Slower than a typical assistant — patients are tired and may be hard of hearing.",
+  "model": "eleven_v3",
+  "default_voice_id_env": "ELEVENLABS_VOICE_ID_EN",
+  "moments": [
+    {
+      "id": "greeting",
+      "purpose": "First-turn AI-disclosure + check-in. Plays once at session start unless patient speaks first.",
+      "text": "[warm][calm] Hi Maria, this is Aria — [soft] your AI recovery copilot from the hospital. [reassuring] I have your discharge plan in front of me. [gentle] How are you feeling tonight?",
+      "filename": "greeting.mp3"
+    },
+    {
+      "id": "before_critical_escalation",
+      "purpose": "Said immediately before a critical escalation tool fires — buys ~1 second so the patient knows she is being heard. Use sparingly.",
+      "text": "[urgent_calm] Maria, I'm getting a nurse on the line right now.",
+      "filename": "before_critical_escalation.mp3"
+    },
+    {
+      "id": "handoff_intro",
+      "purpose": "Spoken when escalate_to_clinician returns successfully for non-critical handoffs.",
+      "text": "[warm][reassuring] Okay — I've passed your question to the on-call nurse. They'll call you back within fifteen minutes.",
+      "filename": "handoff_intro.mp3"
+    },
+    {
+      "id": "dose_logged_taken",
+      "purpose": "Confirmation after a successful taken-dose log. Brief, never preachy.",
+      "text": "[gentle][warm] Got it — logged. You're on track.",
+      "filename": "dose_logged_taken.mp3"
+    },
+    {
+      "id": "dose_logged_missed",
+      "purpose": "Confirmation after a missed-dose log. Acknowledges without judgment, hands off the next-step instruction to the tool return value.",
+      "text": "[soft][supportive] Thanks for telling me, Maria. Here's what your discharge plan says to do.",
+      "filename": "dose_logged_missed.mp3"
+    },
+    {
+      "id": "wrap_up",
+      "purpose": "Used when the patient says goodbye and the agent is about to call end_call.",
+      "text": "[warm][gentle] Take care, Maria. I'm here whenever you need me.",
+      "filename": "wrap_up.mp3"
+    }
+  ]
+}

@@ -43,7 +43,7 @@ def fetch_instant_answer_snippet(query: str, timeout: float = 10.0) -> str | Non
 
     try:
         with httpx.Client(timeout=timeout) as client:
-            resp = client.get(url, headers={"User-Agent": "AfterCare/0.1 (patient education demo)"})
+            resp = client.get(url, headers={"User-Agent": "Aftercare/0.1 (patient education demo)"})
             resp.raise_for_status()
             data: dict[str, Any] = resp.json()
     except Exception:
