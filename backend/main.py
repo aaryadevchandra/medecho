@@ -1,4 +1,4 @@
-"""MedEcho API — upload medical documents, structured extraction, and RAG Q&A."""
+"""AfterCare API — upload medical documents, structured extraction, and RAG Q&A."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from session_store import create_session, get_session
 
 ALLOWED_EXTENSIONS = {".pdf", ".txt"}
 
-app = FastAPI(title="MedEcho API", version="0.1.0")
+app = FastAPI(title="AfterCare API", version="0.1.0")
 
 # Local dev: allow any origin without credentials so browser reads 4xx/5xx JSON
 # (avoids "CORS missing" when Origin is another localhost port or 127.0.0.1 vs localhost).

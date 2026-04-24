@@ -9,12 +9,22 @@ from urllib.parse import urlencode
 import httpx
 
 
+def _web_lookup_flag() -> str:
+    """Prefer AFTERCARE_WEB_LOOKUP; fall back to legacy MEDECHO_WEB_LOOKUP."""
+    if "AFTERCARE_WEB_LOOKUP" in os.environ:
+        return (os.environ.get("AFTERCARE_WEB_LOOKUP") or "1").strip().lower()
+    if "MEDECHO_WEB_LOOKUP" in os.environ:
+        return (os.environ.get("MEDECHO_WEB_LOOKUP") or "1").strip().lower()
+    return "1"
+
+
 def fetch_instant_answer_snippet(query: str, timeout: float = 10.0) -> str | None:
     """
     Returns a short plain-text snippet from DuckDuckGo's instant answer JSON.
-    Disabled when MEDECHO_WEB_LOOKUP is 0/false, or on any network/parse error.
+    Disabled when AFTERCARE_WEB_LOOKUP (or legacy MEDECHO_WEB_LOOKUP) is 0/false,
+    or on any network/parse error.
     """
-    flag = (os.environ.get("MEDECHO_WEB_LOOKUP") or "1").strip().lower()
+    flag = _web_lookup_flag()
     if flag in ("0", "false", "no", "off"):
         return None
 
@@ -33,7 +43,7 @@ def fetch_instant_answer_snippet(query: str, timeout: float = 10.0) -> str | Non
 
     try:
         with httpx.Client(timeout=timeout) as client:
-            resp = client.get(url, headers={"User-Agent": "MedEcho/0.1 (patient education demo)"})
+            resp = client.get(url, headers={"User-Agent": "AfterCare/0.1 (patient education demo)"})
             resp.raise_for_status()
             data: dict[str, Any] = resp.json()
     except Exception:

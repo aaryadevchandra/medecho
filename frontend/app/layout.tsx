@@ -8,7 +8,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "MedEcho",
+  title: "AfterCare",
   description:
     "Turn medical documents into clear, structured patient instructions.",
 };

@@ -41,7 +41,7 @@ export default function HomePage() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-6 py-10">
           <h1 className="text-3xl font-bold tracking-tight text-blue-700 md:text-4xl">
-            MedEcho
+            AfterCare
           </h1>
           <p className="mt-3 max-w-2xl text-lg text-slate-600 md:text-xl">
             Turn medical documents into clear, structured patient instructions — then ask

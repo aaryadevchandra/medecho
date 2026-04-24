@@ -1,6 +1,6 @@
-# MedEcho
+# AfterCare
 
-MedEcho turns **medical documents** (PDF or plain text) into a **readable patient summary** and answers **follow-up questions** by combining **retrieval from your upload**, **optional web snippets**, and **general medical context** from the chat model.
+AfterCare turns **medical documents** (PDF or plain text) into a **readable patient summary** and answers **follow-up questions** by combining **retrieval from your upload**, **optional web snippets**, and **general medical context** from the chat model.
 
 This repository is an **MVP slice**: upload → structured extraction (LLM) → in-memory indexing → RAG Q&A. There is **no database**, **no authentication**, and **no voice** features yet.
 
@@ -11,7 +11,7 @@ This repository is an **MVP slice**: upload → structured extraction (LLM) → 
 - **Upload** PDF or TXT (drag-and-drop or file picker).
 - **Structured extraction** via [Mistral AI](https://console.mistral.ai/): patient info, diagnoses, medications, tests, follow-up, red flags, and doctor instructions (structured data rendered as summary cards — not raw JSON in the UI).
 - **RAG Q&A** after upload: see [RAG & retrieval](#rag--retrieval) below.
-- **Optional web context**: short [DuckDuckGo Instant Answer](https://duckduckgo.com/api) JSON snippets merged into the Q&A prompt when available (`MEDECHO_WEB_LOOKUP`, on by default).
+- **Optional web context**: short [DuckDuckGo Instant Answer](https://duckduckgo.com/api) JSON snippets merged into the Q&A prompt when available (`AFTERCARE_WEB_LOOKUP`, on by default; legacy `MEDECHO_WEB_LOOKUP` still honored).
 - **Assistant replies** rendered as **Markdown** in the UI (`react-markdown` + Tailwind Typography).
 - **Sample document** card for demo formatting.
 
@@ -76,7 +76,7 @@ All calls use **`MISTRAL_API_KEY`** (La Plateforme). Override models with enviro
 1. **Embed the user question** with the same embedding model.
 2. **Cosine similarity** between the question vector and every chunk vector (`rag.py`).
 3. **Top‑k chunks** (default **6**) concatenated into the system prompt as “document excerpts”.
-4. **Optional web snippet** — `web_context.py` calls DuckDuckGo’s **`api.duckduckgo.com`** (JSON); if `Abstract` / `Answer` / `Definition` exist, they are appended for the model to treat as **third-party, verify-before-trusting** context. Disable with `MEDECHO_WEB_LOOKUP=0`.
+4. **Optional web snippet** — `web_context.py` calls DuckDuckGo’s **`api.duckduckgo.com`** (JSON); if `Abstract` / `Answer` / `Definition` exist, they are appended for the model to treat as **third-party, verify-before-trusting** context. Disable with `AFTERCARE_WEB_LOOKUP=0` (or legacy `MEDECHO_WEB_LOOKUP=0`).
 5. **Chat completion** — System instructions tell the model to combine **(1) document excerpts**, **(2) web snippet if any**, and **(3) general medical knowledge**, with clear headings (Markdown) for the UI.
 
 There is **no re-ranking**, **no hybrid BM25**, and **no citation offsets** back into the PDF — this is intentionally simple.
@@ -97,7 +97,7 @@ There is **no re-ranking**, **no hybrid BM25**, and **no citation offsets** back
 ## Project layout
 
 ```
-medecho/
+aftercare/
 ├── README.md
 ├── backend/
 │   ├── main.py              # FastAPI routes, CORS, orchestration
@@ -129,7 +129,7 @@ medecho/
 | `MISTRAL_API_KEY` | **Yes** | API key from [Mistral La Plateforme](https://console.mistral.ai/). |
 | `MISTRAL_MODEL` | No | Chat model for **JSON extraction** and **Q&A** (default: `mistral-small-latest`). |
 | `MISTRAL_EMBED_MODEL` | No | Embedding model for **RAG indexing / query** (default: `mistral-embed`). |
-| `MEDECHO_WEB_LOOKUP` | No | Set to `0` / `false` / `off` to **disable** DuckDuckGo instant-answer snippets (default: enabled). |
+| `AFTERCARE_WEB_LOOKUP` | No | Set to `0` / `false` / `off` to **disable** DuckDuckGo instant-answer snippets (default: enabled). Legacy: `MEDECHO_WEB_LOOKUP` is read if `AFTERCARE_WEB_LOOKUP` is unset. |
 
 Do not commit API keys. Use `export` in your shell or a local `.env` file that is gitignored (load manually or add `python-dotenv` if you prefer).
 
@@ -194,7 +194,7 @@ npm start
 
 ## Medical disclaimer
 
-MedEcho is a **demonstration tool**. It does not replace licensed medical care. Model and web snippets can be wrong or outdated. Always follow your clinician and pharmacist, and use emergency services when appropriate.
+AfterCare is a **demonstration tool**. It does not replace licensed medical care. Model and web snippets can be wrong or outdated. Always follow your clinician and pharmacist, and use emergency services when appropriate.
 
 ---
 
@@ -205,25 +205,25 @@ MedEcho is a **demonstration tool**. It does not replace licensed medical care. 
 ```bash
 brew install gh          # if `gh` is not installed
 gh auth login            # browser or token; one-time per machine
-cd /path/to/medecho
-gh repo create medecho --public --source=. --remote=origin --push
+cd /path/to/aftercare
+gh repo create aftercare --public --source=. --remote=origin --push
 ```
 
 If `origin` already exists:
 
 ```bash
-gh repo create medecho --public --source=. --push
+gh repo create aftercare --public --source=. --push
 ```
 
 Use `--private` instead of `--public` for a private repository.
 
 ### Option B — Create the repo in the browser
 
-1. Open [github.com/new](https://github.com/new), name the repository (e.g. `medecho`), leave “Initialize” unchecked.
+1. Open [github.com/new](https://github.com/new), name the repository (e.g. `aftercare`), leave “Initialize” unchecked.
 2. Point `origin` at your new URL (replace `YOUR_USER` and `REPO`):
 
    ```bash
-   cd /path/to/medecho
+   cd /path/to/aftercare
    git remote remove origin 2>/dev/null || true
    git remote add origin https://github.com/YOUR_USER/REPO.git
    git push -u origin main
