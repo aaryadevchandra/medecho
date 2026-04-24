@@ -83,13 +83,15 @@ Health check: `GET http://localhost:8000/health`
 
 ### 2. Frontend (port 3000)
 
+Requires **Node.js 18.17+** (Next.js 14). Run commands from the **`frontend/`** directory so Tailwind picks up your source files:
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**. The UI calls the API at **http://localhost:8000** (see `frontend/lib/api.ts`). Change `API_BASE` there if your backend runs elsewhere.
+Open **http://localhost:3000** (or the port Next prints, e.g. 3001 if 3000 is busy). The UI calls the API at **http://localhost:8000** (see `frontend/lib/api.ts`). Change `API_BASE` there if your backend runs elsewhere.
 
 ---
 

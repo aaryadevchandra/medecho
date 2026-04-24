@@ -105,11 +105,11 @@ export function UploadPanel({
             : "border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-slate-100/80"
         }`}
       >
-        <span className="text-lg font-medium text-slate-800">
+        <p className="m-0 text-lg font-medium text-slate-800">
           Drag and drop your file here
-        </span>
-        <span className="mt-2 text-base text-slate-600">or click to browse</span>
-        <span className="mt-3 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
+        </p>
+        <p className="m-0 mt-2 text-base text-slate-600">or click to browse</p>
+        <span className="mt-3 inline-block rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
           Choose file
         </span>
       </div>
