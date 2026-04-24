@@ -127,6 +127,43 @@ MedEcho is a **demonstration tool**. It does not provide medical advice, diagnos
 
 ---
 
+## Publishing to GitHub
+
+This repo is initialized with `main` and an initial commit. To create the GitHub repository and push (pick one path).
+
+### Option A — GitHub CLI (recommended)
+
+```bash
+brew install gh          # if `gh` is not installed
+gh auth login            # browser or token; one-time per machine
+cd /path/to/medecho
+gh repo create medecho --public --source=. --remote=origin --push
+```
+
+If `origin` already exists (for example from a manual add), use:
+
+```bash
+gh repo create medecho --public --source=. --push
+```
+
+Use `--private` instead of `--public` if you prefer a private repository.
+
+### Option B — Create the repo in the browser
+
+1. Open [github.com/new](https://github.com/new), name the repository (e.g. `medecho`), leave “Initialize” unchecked.
+2. Point `origin` at your new URL (replace `YOUR_USER` and `REPO`):
+
+   ```bash
+   cd /path/to/medecho
+   git remote remove origin 2>/dev/null || true
+   git remote add origin https://github.com/YOUR_USER/REPO.git
+   git push -u origin main
+   ```
+
+For SSH: `git remote add origin git@github.com:YOUR_USER/REPO.git`
+
+---
+
 ## License
 
 Add a license file if you open-source this project.
