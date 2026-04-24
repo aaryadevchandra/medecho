@@ -10,6 +10,7 @@ from mistralai import Mistral
 from mistralai.models import SDKError
 
 from llm import LLMAuthError, _normalize_api_key, _assistant_content_to_text
+from web_context import fetch_instant_answer_snippet
 
 
 def _mistral_key() -> str:
@@ -209,25 +210,31 @@ def retrieve_context(
     return "\n\n---\n\n".join(picked)
 
 
-RAG_SYSTEM = """You are MedEcho, helping a patient understand their own uploaded medical document.
+RAG_INSTRUCTIONS = """You are MedEcho, helping a patient understand their health using BOTH their uploaded medical document AND broader medical information.
 
-You have two sources of information — use BOTH when helpful:
+You should routinely combine information from these sources (use all that apply — do not limit yourself to the document alone):
 
-1) PRIMARY — STRUCTURED SUMMARY AND DOCUMENT EXCERPTS (below). Always start here.
-   - Quote or paraphrase what the document actually says about this patient.
-   - Never contradict the document. If the document states a drug, dose, or instruction, treat that as authoritative for *this* patient.
+1) **From your medical document** — STRUCTURED SUMMARY AND DOCUMENT EXCERPTS appear below under that heading.
+   - Lead with what the document states about *this* patient (drugs, doses, diagnoses, instructions, follow-up, red flags).
+   - Treat the document as authoritative for patient-specific facts. Never contradict it.
 
-2) SUPPLEMENTARY — your general medical / patient-education knowledge.
-   - You MAY add well-established, non–patient-specific context when the document is silent or incomplete (e.g. typical diet counseling with metformin, what “twice daily” usually means, when to seek urgent care for common symptoms).
-   - Clearly LABEL this section so the user can tell it is not from their file, e.g. a short heading: **General medical context (not from your document):**
-   - Keep it accurate and conservative; prefer mainstream clinical guidance. If evidence is mixed or uncertain, say so.
-   - Do not fabricate details about *this* patient that are not in the excerpts.
+2) **Web instant summary** — When a “WEB INSTANT SUMMARY” block appears below, it is a short third-party snippet (DuckDuckGo). It may be incomplete or out of date.
+   - Use it only as extra orientation; verify important facts. Say clearly it is not from their file.
+
+3) **General medical knowledge** — Use your training: mainstream patient education and consensus-style guidance similar to reputable public sources (e.g. NIH, CDC, NHS, major hospital patient pages, drug-label concepts).
+   - You are NOT doing live browsing beyond any WEB block provided; draw on widely published medical knowledge and say so if needed.
+   - Always include a clearly labeled section when you add this: **General medical context (not from your document):**
+   - This section should be **substantive whenever it helps** explain conditions, medications, tests, lifestyle, monitoring, or when to seek care — not only when the document is silent. Integrate it with the document section so the answer feels like one coherent explanation.
+   - Do not invent patient-specific facts (names, doses, labs) that are not in the document excerpts.
 
 Safety and tone:
-- Use plain language. You are not replacing their clinician; end supplementary sections with a brief reminder to confirm with their doctor or pharmacist when changing behavior, diet, or medications.
-- If the user describes an emergency, tell them to seek urgent/emergency care as appropriate; you may use general knowledge for that.
+- Plain language. You are not replacing their clinician; remind them to confirm with their doctor or pharmacist for personal decisions, dose changes, or new symptoms.
+- Emergencies: advise urgent/emergency care when appropriate using general standards.
 
-STRUCTURED SUMMARY AND DOCUMENT EXCERPTS:
+Format your reply with clear headings, for example:
+- **From your medical document:** …
+- **General medical context (not from your document):** …
+(Include a **Web instant summary** bullet only if a WEB block was provided and you used it.)
 """
 
 
@@ -243,26 +250,37 @@ def answer_question(
     client = Mistral(api_key=_mistral_key())
     context = retrieve_context(client, chunks, embeddings, q, top_k=6)
     if not context.strip():
-        context = "(No document excerpts were retrieved; rely on general medical education only, and say nothing is available from the uploaded file.)"
+        context = "(No document excerpts were retrieved; say so briefly, then still provide useful general medical context for the question.)"
+
+    web_snippet = fetch_instant_answer_snippet(q)
+    system_body = RAG_INSTRUCTIONS
+    if web_snippet:
+        system_body += (
+            "\n\n---\nWEB INSTANT SUMMARY (third party; verify):\n"
+            + web_snippet
+            + "\n---"
+        )
+    system_body += "\n\nSTRUCTURED SUMMARY AND DOCUMENT EXCERPTS (from upload):\n" + context
 
     model = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
     user_msg = (
         f"Patient question:\n{q}\n\n"
-        "First, answer what their document says (if anything). "
-        "Then, if useful, add a clearly labeled **General medical context (not from your document):** "
-        "section with mainstream patient-education information. "
-        "Keep both sections concise."
+        "Write a helpful answer that combines (1) what their document says, "
+        "(2) any web instant summary provided above if relevant, and "
+        "(3) a substantive **General medical context (not from your document):** section "
+        "with mainstream patient-education information aligned with widely published sources. "
+        "Do not stay document-only unless the question is purely administrative."
     )
 
     try:
         resp = client.chat.complete(
             model=model,
             messages=[
-                {"role": "system", "content": RAG_SYSTEM + context},
+                {"role": "system", "content": system_body},
                 {"role": "user", "content": user_msg},
             ],
-            temperature=0.25,
-            max_tokens=1400,
+            temperature=0.3,
+            max_tokens=2048,
         )
     except SDKError as e:
         if e.status_code == 401:

@@ -41,8 +41,8 @@ export function QuestionAnswer({ sessionId }: QuestionAnswerProps) {
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-xl font-semibold text-slate-900">Ask about this document</h2>
       <p className="mt-1 text-base text-slate-600">
-        Answers start from your uploaded document, then may add clearly labeled general medical
-        context when the file does not cover your question.
+        Answers combine your document with mainstream medical context and, when available, a
+        short web instant summary — not document-only.
       </p>
 
       {!sessionId ? (

@@ -11,7 +11,7 @@ This repository is an **MVP slice**: upload → structured extraction (LLM) → 
 - **Upload** PDF or TXT (drag-and-drop or file picker).
 - **Structured extraction** via [Mistral AI](https://console.mistral.ai/): patient info, diagnoses, medications, tests, follow-up, red flags, and doctor instructions (stored as structured data, not shown as raw JSON in the UI).
 - **User-facing summary** cards on the web app (no JSON dump).
-- **RAG Q&A** after upload: embeddings over document chunks + a plain-text “structured summary” chunk; answers **start from the document**, then may add a clearly labeled **“General medical context (not from your document)”** section when the file does not cover the question.
+- **RAG Q&A** after upload: embeddings over document chunks + a plain-text “structured summary” chunk; answers **combine the document** with **mainstream general medical context** (and, when available, a short **DuckDuckGo instant-answer** snippet — verify important facts).
 - **Sample document** card in the UI for demo formatting.
 
 ---
@@ -61,6 +61,7 @@ medecho/
 | `MISTRAL_API_KEY` | **Yes** | API key from [Mistral La Plateforme](https://console.mistral.ai/). |
 | `MISTRAL_MODEL` | No | Chat model for extraction + Q&A (default: `mistral-small-latest`). |
 | `MISTRAL_EMBED_MODEL` | No | Embedding model for RAG (default: `mistral-embed`). |
+| `MEDECHO_WEB_LOOKUP` | No | Set to `0` / `false` to disable DuckDuckGo instant-answer snippets in Q&A (default: enabled). |
 
 Do not commit API keys. Use `export` in your shell or a local `.env` file that is gitignored (load manually or add `python-dotenv` if you prefer).
 
