@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { askSession } from "@/lib/api";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -66,7 +68,24 @@ export function QuestionAnswer({ sessionId }: QuestionAnswerProps) {
                     : "mr-4 border border-slate-200 bg-white text-slate-800"
                 }`}
               >
-                {msg.content}
+                {msg.role === "assistant" ? (
+                  <div
+                    className={
+                      "prose prose-slate prose-sm max-w-none " +
+                      "prose-headings:font-semibold prose-headings:text-slate-900 " +
+                      "prose-h2:text-lg prose-h3:text-base prose-h4:text-base " +
+                      "prose-p:my-2 prose-li:my-0.5 " +
+                      "prose-hr:border-slate-200 prose-hr:my-4 " +
+                      "prose-strong:text-slate-900 prose-a:text-blue-600 prose-blockquote:border-slate-300"
+                    }
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="m-0 whitespace-pre-wrap break-words">{msg.content}</p>
+                )}
               </div>
             ))}
             {loading && (

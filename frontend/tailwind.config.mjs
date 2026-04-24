@@ -1,3 +1,4 @@
+import typography from "@tailwindcss/typography";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -23,5 +24,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [typography],
 };
